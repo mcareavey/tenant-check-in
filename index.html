@@ -100,10 +100,14 @@ tr.it.has-note td { border-bottom: 0; }
 .btn-plain { background: #ffffff; color: var(--navy); padding: 7px 14px; font-size: .9375rem; }
 .linkish { background: none; border: 0; padding: 0; font: inherit; font-size: .875rem; color: var(--navy); text-decoration: underline; cursor: pointer; }
 
-.photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; margin: 10px 0 0; }
-.photos figure { margin: 0; position: relative; }
-.photos img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; border: 1px solid var(--line); }
-.photos button { position: absolute; top: 3px; right: 3px; border: 0; background: rgba(0,0,0,.7); color: #fff; width: 22px; height: 22px; cursor: pointer; font-size: 13px; line-height: 1; }
+.photos { margin: 12px 0 0; }
+.vh { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.vh:focus + label { outline: 3px solid #f2c94c; }
+.photo-row { display: grid; grid-template-columns: 76px 1fr; gap: 12px; align-items: start; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.photo-row:first-child { border-top: 1px solid var(--line); }
+.photo-row img { width: 76px; height: 76px; object-fit: cover; display: block; border: 1px solid var(--line); }
+.photo-row label { display: block; font-weight: 700; font-size: .875rem; margin-bottom: 4px; }
+.photo-row .linkish { margin-top: 4px; }
 
 .sig-box { border: 1px solid var(--field); background: #ffffff; position: relative; }
 #sig { width: 100%; height: 150px; display: block; touch-action: none; cursor: crosshair; }
@@ -141,8 +145,8 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
   <h2 id="how">How this form works</h2>
   <ol>
     <li>Go through your room and the shared areas on the day you move in, ideally with whoever is checking you in.</li>
-    <li>Tick one box per item. <b>Good:</b> clean, no marks or damage. <b>Fair:</b> minor wear or small marks. <b>Poor:</b> damaged, stained, broken or not working. <b>N/A:</b> not there. Add a note for anything specific. Each area has an "All Good" button: mark anything that isn't Good first, then press it to fill in the rest.</li>
-    <li>Add clear photos of your room and of anything you've noted.</li>
+    <li>Tick one box per item. <b>Good:</b> clean, no marks or damage. <b>Fair:</b> minor wear or small marks. <b>Poor:</b> damaged, stained, broken or not working. <b>N/A:</b> not there. Anything marked Fair or Poor needs a note saying what's wrong and where. Each area has an "All Good" button: mark anything that isn't Good first, then press it to fill in the rest.</li>
+    <li>Add clear photos of your room and of anything you've noted, with a few words on what each one shows.</li>
     <li>Sign at the end and press Send.</li>
     <li>If you find anything else within 7 days of moving in, email your landlord a description and photos. Those emails become part of this record.</li>
     <li>At check-out the room and shared areas are compared with this record, allowing for fair wear and tear.</li>
@@ -200,8 +204,9 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
   <h2 id="s-photos">Section D: Photos and comments</h2>
   <div class="field">
     <label for="f-photos">Photos</label>
-    <span class="hint">Your room from each corner, plus close-ups of anything marked Fair or Poor. They're added to the PDF.</span>
-    <input type="file" id="f-photos" accept="image/*" multiple>
+    <span class="hint">Your room from each corner, plus close-ups of anything marked Fair or Poor. Add as many as you like, in one go or a few at a time, and say what each one shows. They're added to the PDF.</span>
+    <input type="file" id="f-photos" accept="image/*" multiple class="vh">
+    <label for="f-photos" class="btn btn-plain" style="display:inline-block;font-weight:700;margin:0">Add photos</label>
     <div class="photos" id="photo-list"></div>
   </div>
   <div class="field"><label for="f-comments">Comments <span class="opt">(optional)</span></label><textarea id="f-comments"></textarea></div>
@@ -316,8 +321,17 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
   document.addEventListener("click", function (e) {
     var b = e.target.closest(".add-note"); if (b) showNote(b.closest("tr"), true);
   });
+  function notePrompt(tr) {
+    var c = $("input:checked", tr), note = $("#" + tr.dataset.id + "-note");
+    var needed = c && (c.value === "fair" || c.value === "poor");
+    note.placeholder = needed ? "Note (required): what's wrong and where" : "Note (optional): marks, damage, cleanliness";
+    if (!needed) note.classList.remove("invalid");
+  }
   document.addEventListener("change", function (e) {
-    if (e.target.type === "radio" && (e.target.value === "fair" || e.target.value === "poor")) showNote(e.target.closest("tr"), false);
+    if (e.target.type !== "radio" || !e.target.closest("tr.it")) return;
+    var tr = e.target.closest("tr.it");
+    if (e.target.value === "fair" || e.target.value === "poor") showNote(tr, false);
+    notePrompt(tr);
   });
 
   var extras = [];
@@ -393,15 +407,24 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
   var photos = [];
   function renderPhotos() {
     $("#photo-list").innerHTML = photos.map(function (p, i) {
-      return '<figure><img src="' + p.url + '" alt="Photo ' + (i + 1) + '"><button type="button" data-i="' + i + '" aria-label="Remove photo ' + (i + 1) + '">×</button></figure>';
+      return '<div class="photo-row"><img src="' + p.url + '" alt="Photo ' + (i + 1) + '"><div>' +
+        '<label for="cap-' + i + '">Photo ' + (i + 1) + ': what does it show?</label>' +
+        '<input type="text" class="cap" id="cap-' + i + '" data-i="' + i + '" maxlength="140" value="' + esc(p.caption || "") + '" placeholder="For example, carpet stain by window">' +
+        '<button type="button" class="linkish" data-del="' + i + '">Remove photo ' + (i + 1) + "</button></div></div>";
     }).join("");
   }
   $("#f-photos").addEventListener("change", function (e) {
-    Array.prototype.forEach.call(e.target.files, function (f) { photos.push({ file: f, url: URL.createObjectURL(f) }); });
+    var first = photos.length;
+    Array.prototype.forEach.call(e.target.files, function (f) { photos.push({ file: f, url: URL.createObjectURL(f), caption: "" }); });
     e.target.value = ""; renderPhotos();
+    var cap = document.getElementById("cap-" + first); if (cap) cap.focus();
+  });
+  $("#photo-list").addEventListener("input", function (e) {
+    if (e.target.classList.contains("cap")) photos[+e.target.dataset.i].caption = e.target.value;
   });
   $("#photo-list").addEventListener("click", function (e) {
-    var b = e.target.closest("button[data-i]"); if (!b) return; photos.splice(+b.dataset.i, 1); renderPhotos();
+    var b = e.target.closest("button[data-del]"); if (!b) return;
+    var i = +b.dataset.del; URL.revokeObjectURL(photos[i].url); photos.splice(i, 1); renderPhotos();
   });
 
   /* ---------- save and restore (this device only) ---------- */
@@ -429,6 +452,8 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
       var tr = $('tr.it[data-id="' + id + '"]'); if (!tr) return; var v = s.items[id];
       if (v.c) { var r = document.getElementById(id + "-" + v.c); if (r) r.checked = true; }
       if (v.n) { $("#" + id + "-note").value = v.n; showNote(tr, false); }
+      if (v.c === "fair" || v.c === "poor") showNote(tr, false);
+      notePrompt(tr);
     });
     (s.checks || []).forEach(function (v, i) { var c = document.getElementById("c" + i); if (c) c.checked = !!v; });
     $("#f-rules").checked = !!s.rules; $("#f-declare").checked = !!s.declare;
@@ -469,6 +494,15 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
     var left = $$("tr.it").filter(function (tr) { return !$("input:checked", tr); });
     left.forEach(function (tr) { tr.classList.add("missing"); });
     if (left.length) errs.push([left[0].dataset.id + "-good", "Rate every item (" + left.length + " left, starting with " + left[0].dataset.name + ")"]);
+    var unexplained = $$("tr.it").filter(function (tr) {
+      var c = $("input:checked", tr);
+      return c && (c.value === "fair" || c.value === "poor") && !$("#" + tr.dataset.id + "-note").value.trim();
+    });
+    unexplained.forEach(function (tr) { showNote(tr, false); $("#" + tr.dataset.id + "-note").classList.add("invalid"); });
+    if (unexplained.length) errs.push([unexplained[0].dataset.id + "-note", "Add a note to every item marked Fair or Poor (" + unexplained.length + " left, starting with " + unexplained[0].dataset.name + ")"]);
+    photos.forEach(function (p, i) {
+      if (!(p.caption || "").trim()) { errs.push(["cap-" + i, "Say what photo " + (i + 1) + " shows"]); document.getElementById("cap-" + i).classList.add("invalid"); }
+    });
     if (!$("#f-declare").checked) { errs.push(["f-declare", "Tick the declaration"]); $('label[for="f-declare"]').classList.add("missing"); }
     if (!signed) { errs.push(["sig", "Sign the form"]); $(".sig-box").classList.add("invalid"); }
     return errs;
@@ -488,7 +522,7 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
       var s = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
       var c = document.createElement("canvas"); c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
       c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-      return { data: c.toDataURL("image/jpeg", 0.72), w: c.width, h: c.height, name: p.file.name, time: p.file.lastModified };
+      return { data: c.toDataURL("image/jpeg", 0.72), w: c.width, h: c.height, caption: (p.caption || "").trim(), time: p.file.lastModified };
     });
   }
   function buildPdf(at) {
@@ -586,11 +620,14 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
     return Promise.all(photos.map(compress)).then(function (imgs) {
       imgs.forEach(function (im, i) {
         if (i % 2 === 0) { doc.addPage(); header(); h1(i === 0 ? "Photos" : "Photos (continued)"); }
-        var s = Math.min((R - L) / im.w, 330 / im.h), w = im.w * s, h = im.h * s;
+        var s = Math.min((R - L) / im.w, 315 / im.h), w = im.w * s, h = im.h * s;
         doc.addImage(im.data, "JPEG", L, y, w, h);
-        doc.setFontSize(8); doc.setTextColor.apply(doc, GREY);
-        doc.text("Photo " + (i + 1) + ": " + im.name + (im.time ? ", taken or saved " + new Date(im.time).toLocaleString("en-GB") : ""), L, y + h + 11);
-        y += h + 26;
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor.apply(doc, INK);
+        var cap = doc.splitTextToSize("Photo " + (i + 1) + ": " + (im.caption || "No description"), R - L);
+        doc.text(cap, L, y + h + 12);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor.apply(doc, GREY);
+        if (im.time) doc.text("Taken or saved " + new Date(im.time).toLocaleString("en-GB"), L, y + h + 12 + cap.length * 11);
+        y += h + 12 + cap.length * 11 + 20;
       });
       var pages = doc.getNumberOfPages();
       for (var p = 1; p <= pages; p++) {
@@ -639,7 +676,7 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
       "Tenant: " + val("f-name") + (val("f-room") ? ", " + val("f-room") : ""),
       "Tenant email: " + (val("f-email") || "not given"),
       "Check-in date: " + longDate(val("f-checkin")),
-      "Photos: " + photos.length,
+      "Photos: " + photos.length + photos.map(function (p, i) { return "\n- Photo " + (i + 1) + ": " + (p.caption || "").trim(); }).join(""),
       "",
       "Marked Fair or Poor:", flagged.length ? flagged.join("\n") : "- None",
       "",
@@ -673,7 +710,7 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
       "", "SECTION C: SAFETY CHECKS AND DOCUMENTS",
       CHECKS.map(function (c, i) { return (document.getElementById("c" + i).checked ? "[x] " : "[ ] ") + c; }).join("\n"),
       "", "SECTION D: PHOTOS AND COMMENTS",
-      "Photos: " + photos.length + (photos.length ? " (in the attached PDF)" : ""),
+      "Photos: " + photos.length + (photos.length ? " (in the attached PDF)" : "") + photos.map(function (p, i) { return "\n- Photo " + (i + 1) + ": " + (p.caption || "").trim(); }).join(""),
       "Comments: " + (val("f-comments") || "None"),
       "House rules read: " + ($("#f-rules").checked ? "Yes" : "No")
     ].join("\n");

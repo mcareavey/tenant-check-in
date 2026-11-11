@@ -1,13 +1,15 @@
 /**
- * Receives a check-in PDF from the tenant check-in form and emails it to the landlord.
+ * Receives a check-in PDF from the tenant check-in form, emails it to the landlord,
+ * then emails the tenant their own copy.
  *
  * Set LANDLORD_EMAIL below, then deploy as a web app (see SETUP.md).
- * The recipient is fixed here on purpose: the form can't choose who gets emailed,
- * so the web app can't be used to send mail to anyone else.
+ * The landlord always gets every submission, so any misuse of the tenant copy shows up
+ * in the landlord's inbox. Each check-in uses 2 of the 100 daily email recipients.
  */
 
 var LANDLORD_EMAIL = 'you@example.com';   // where completed check-ins are sent
 var FROM_NAME = 'Tenant check-in form';
+var TENANT_REPLY_TO = LANDLORD_EMAIL;     // where a tenant's reply to their copy goes; set to '' to leave replies in this account
 var MAX_PDF_BYTES = 20 * 1024 * 1024;     // Gmail allows 25 MB of attachments per message
 var MAX_PER_HOUR = 20;                    // stops anyone flooding your inbox or the daily quota
 
@@ -39,10 +41,36 @@ function doPost(e) {
       name: FROM_NAME,
       attachments: [Utilities.newBlob(bytes, 'application/pdf', filename)]
     };
-    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tenantEmail)) message.replyTo = tenantEmail;
+    var validTenant = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tenantEmail);
+    if (validTenant) message.replyTo = tenantEmail;
 
     MailApp.sendEmail(message);
-    return reply({ ok: true });
+
+    // Tenant's own copy, sent only after the landlord's email has gone.
+    var tenantCopy = false;
+    if (validTenant && tenantEmail.toLowerCase() !== LANDLORD_EMAIL.toLowerCase()) {
+      try {
+        var first = name.split(/\s+/)[0];
+        var copy = {
+          to: tenantEmail,
+          subject: 'Your check-in' + (room ? ': ' + room : ''),
+          body: 'Hi ' + first + ',\n\n' +
+            'Here is a copy of the check-in form you submitted. The full form, your signature and your photos are in the attached PDF.\n\n' +
+            'Your landlord will countersign it and send you a signed copy. If you spot anything else in the first 7 days, ' +
+            'email your landlord a description and photos and it becomes part of this record.\n\n' +
+            '----------------------------------------\n\n' +
+            (clean(data.details, 20000) || 'See the attached PDF.'),
+          name: FROM_NAME,
+          attachments: [Utilities.newBlob(bytes, 'application/pdf', filename)]
+        };
+        if (TENANT_REPLY_TO) copy.replyTo = TENANT_REPLY_TO;
+        MailApp.sendEmail(copy);
+        tenantCopy = true;
+      } catch (copyErr) {
+        console.error(copyErr);
+      }
+    }
+    return reply({ ok: true, tenantCopy: tenantCopy });
   } catch (err) {
     console.error(err);
     return reply({ ok: false, error: 'server' });

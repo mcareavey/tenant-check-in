@@ -1,6 +1,6 @@
 # Emailing check-ins with Google Apps Script
 
-When a tenant presses Send, the form posts the PDF to this script, and the script emails it to the landlord from the Google account that runs it. The tenant can also save their own copy on their phone.
+When a tenant presses Send, the form posts the PDF to this script. The script emails it to the landlord, then emails the tenant their own copy with the full details written out, both from the Google account that runs it.
 
 Set it up in the Google account you want the emails to come from (a separate account just for this is a good idea).
 
@@ -35,6 +35,7 @@ Edit the code, then **Deploy**, **Manage deployments**, the pencil icon, Version
 
 ## Limits
 
-- Google allows a personal Gmail account to email 100 recipients a day, and 25 MB of attachments per message. The form keeps PDFs under 18 MB.
+- Google allows a personal Gmail account to email 100 recipients a day, and 25 MB of attachments per message. Each check-in uses 2 recipients (landlord and tenant), so about 50 check-ins a day. The form keeps PDFs under 18 MB.
+- Tenants' replies to their copy go to `TENANT_REPLY_TO` (the landlord's address by default).
 - The script accepts at most 20 submissions an hour, so nobody can flood your inbox.
 - The landlord's address only exists in the script, not in the public form.

@@ -63,7 +63,15 @@ thead th { background: var(--navy); color: #ffffff; font-size: .8125rem; font-we
 thead th.r { text-align: center; width: 46px; padding: 6px 2px; }
 .cond thead th { position: sticky; top: var(--strip-h, 37px); z-index: 2; }
 @media (max-width: 360px) { thead th.r { width: 40px; font-size: .75rem; } td { padding: 8px 6px; } }
-.bulk { margin: 0 0 10px; }
+.grp-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.grp-good {
+  font: inherit; font-size: .75rem; font-weight: 700; letter-spacing: 0; text-transform: none; cursor: pointer;
+  background: #ffffff; color: var(--navy); border: 1px solid var(--navy); border-radius: 2px; padding: 3px 9px;
+}
+.invalid { border: 2px solid var(--error) !important; }
+tr.missing td:first-child > span { color: var(--error); font-weight: 700; }
+label.missing { color: var(--error); }
+.opt { font-weight: 400; color: var(--muted); }
 td { border-bottom: 1px solid var(--line); padding: 8px; vertical-align: middle; }
 td.r { text-align: center; padding: 8px 2px; }
 tr.grp th {
@@ -133,13 +141,13 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
   <h2 id="how">How this form works</h2>
   <ol>
     <li>Go through your room and the shared areas on the day you move in, ideally with whoever is checking you in.</li>
-    <li>Tick one box per item. <b>Good:</b> clean, no marks or damage. <b>Fair:</b> minor wear or small marks. <b>Poor:</b> damaged, stained, broken or not working. <b>N/A:</b> not there. Add a note for anything specific. To save time, check everything first, press "Mark unrated items as Good", then change anything that isn't.</li>
+    <li>Tick one box per item. <b>Good:</b> clean, no marks or damage. <b>Fair:</b> minor wear or small marks. <b>Poor:</b> damaged, stained, broken or not working. <b>N/A:</b> not there. Add a note for anything specific. Each area has an "All Good" button: mark anything that isn't Good first, then press it to fill in the rest.</li>
     <li>Add clear photos of your room and of anything you've noted.</li>
     <li>Sign at the end and press Send.</li>
     <li>If you find anything else within 7 days of moving in, email your landlord a description and photos. Those emails become part of this record.</li>
     <li>At check-out the room and shared areas are compared with this record, allowing for fair wear and tear.</li>
   </ol>
-  <p class="hint">Your answers are saved on this device as you go, so you can stop and come back. Photos aren't saved until you press Send.</p>
+  <p class="hint">Your answers are saved on this device as you go, so you can stop and come back. They're cleared once the form has been sent. Photos aren't saved until you press Send.</p>
 
   <h2 id="s-details">Your details</h2>
   <div class="field">
@@ -162,25 +170,24 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
     <thead><tr><th>Key</th><th>Number</th></tr></thead>
     <tbody>
       <tr><td><label for="f-keys">Front door</label></td><td><input type="number" id="f-keys" min="0" inputmode="numeric" class="short"></td></tr>
-      <tr><td colspan="2"><label for="f-keynotes" class="hint" style="display:block;margin-bottom:4px">Other keys or notes</label><input type="text" id="f-keynotes"></td></tr>
+      <tr><td><label for="f-roomkeys">Room door</label></td><td><input type="number" id="f-roomkeys" min="0" inputmode="numeric" class="short"></td></tr>
+      <tr><td colspan="2"><label for="f-keynotes" class="hint" style="display:block;margin-bottom:4px">Other keys or notes <span class="opt">(optional)</span></label><input type="text" id="f-keynotes"></td></tr>
     </tbody>
   </table>
-  <p class="hint" style="margin-top:8px">Shared keys, for example to a back door or shed, may not be issued to you individually. You'll be shown where they're kept.</p>
+  <p class="hint" style="margin-top:8px">Enter 0 if a door has no key. Shared keys, for example to a back door or shed, may not be issued to you individually. You'll be shown where they're kept.</p>
 
   <h2 id="s-room">Section A: Your room</h2>
-  <p class="bulk"><button type="button" class="btn btn-plain mark-good" data-for="room-items">Mark unrated items as Good</button></p>
   <table class="cond">
     <thead><tr><th>Item</th><th class="r">Good</th><th class="r">Fair</th><th class="r">Poor</th><th class="r">N/A</th></tr></thead>
     <tbody id="room-items"></tbody>
   </table>
   <div class="add-row">
-    <input type="text" id="extra-name" placeholder="Anything else in your room" aria-label="Name of another item in your room">
+    <input type="text" id="extra-name" placeholder="Another item (optional)" aria-label="Name of another item in your room (optional)">
     <button type="button" class="btn btn-plain" id="extra-add">Add</button>
   </div>
 
   <h2 id="s-shared">Section B: Shared areas</h2>
   <p class="hint">Rooms that aren't part of your tenancy aren't included.</p>
-  <p class="bulk"><button type="button" class="btn btn-plain mark-good" data-for="shared-items">Mark unrated items as Good</button></p>
   <table class="cond">
     <thead><tr><th>Item</th><th class="r">Good</th><th class="r">Fair</th><th class="r">Poor</th><th class="r">N/A</th></tr></thead>
     <tbody id="shared-items"></tbody>
@@ -197,7 +204,7 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
     <input type="file" id="f-photos" accept="image/*" multiple>
     <div class="photos" id="photo-list"></div>
   </div>
-  <div class="field"><label for="f-comments">Comments</label><textarea id="f-comments"></textarea></div>
+  <div class="field"><label for="f-comments">Comments <span class="opt">(optional)</span></label><textarea id="f-comments"></textarea></div>
 
   <h2 id="s-sign">Sign-off</h2>
   <ul class="checklist">
@@ -284,11 +291,15 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
     RATINGS.forEach(function (r) {
       h += '<td class="r"><input type="radio" name="' + id + '" id="' + id + "-" + r[0] + '" value="' + r[0] + '" aria-label="' + r[1] + ": " + esc(name) + '"></td>';
     });
-    return h + '</tr><tr class="note-row" hidden><td colspan="5"><input type="text" id="' + id + '-note" aria-label="Note for ' + esc(name) + '" placeholder="Note: marks, damage, cleanliness"></td></tr>';
+    return h + '</tr><tr class="note-row" hidden><td colspan="5"><input type="text" id="' + id + '-note" aria-label="Note for ' + esc(name) + '" placeholder="Note (optional): marks, damage, cleanliness"></td></tr>';
+  }
+  function groupHTML(name) {
+    return '<tr class="grp" data-name="' + esc(name) + '"><th colspan="5"><div class="grp-head"><span>' + esc(name) +
+      '</span><button type="button" class="grp-good" aria-label="Mark unrated items in ' + esc(name) + ' as Good">All Good</button></div></th></tr>';
   }
   function build(tbody, groups, prefix) {
     tbody.innerHTML = groups.map(function (g) {
-      return '<tr class="grp"><th colspan="5">' + esc(g[0]) + "</th></tr>" + g[1].map(function (name) { return rowHTML(prefix + (n++), name); }).join("");
+      return groupHTML(g[0]) + g[1].map(function (name) { return rowHTML(prefix + (n++), name); }).join("");
     }).join("");
   }
   build($("#room-items"), ROOM, "r");
@@ -314,7 +325,7 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
     name = name.trim(); if (!name) return;
     var id = "x" + extras.length; extras.push(name);
     var tb = $("#room-items");
-    if (extras.length === 1) tb.insertAdjacentHTML("beforeend", '<tr class="grp"><th colspan="5">Added by you</th></tr>');
+    if (extras.length === 1) tb.insertAdjacentHTML("beforeend", groupHTML("Added by you"));
     tb.insertAdjacentHTML("beforeend", rowHTML(id, name));
     if (!silent) save();
     progress();
@@ -322,15 +333,16 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
   $("#extra-add").addEventListener("click", function () { addExtra($("#extra-name").value); $("#extra-name").value = ""; });
   $("#extra-name").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); $("#extra-add").click(); } });
 
+  // "All Good" in a group header: rates every unrated item in that group Good, leaving existing ratings alone.
   document.addEventListener("click", function (e) {
-    var b = e.target.closest(".mark-good"); if (!b) return;
-    var n = 0;
-    $$("tr.it", document.getElementById(b.dataset.for)).forEach(function (tr) {
-      if (!$("input:checked", tr)) { document.getElementById(tr.dataset.id + "-good").checked = true; n++; }
-    });
-    var msg = b.parentNode.querySelector(".hint");
-    if (!msg) { msg = document.createElement("span"); msg.className = "hint"; msg.style.marginLeft = "10px"; b.parentNode.appendChild(msg); }
-    msg.textContent = n ? n + " marked Good. Change any that aren't." : "Everything here already has a rating.";
+    var b = e.target.closest(".grp-good"); if (!b) return;
+    var tr = b.closest("tr").nextElementSibling;
+    while (tr && !tr.classList.contains("grp")) {
+      if (tr.classList.contains("it") && !$("input:checked", tr)) {
+        document.getElementById(tr.dataset.id + "-good").checked = true; tr.classList.remove("missing");
+      }
+      tr = tr.nextElementSibling;
+    }
     save(); progress();
   });
 
@@ -362,7 +374,7 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
   canvas.addEventListener("pointermove", function (e) {
     if (!drawing) return;
     var p = pos(e); ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
-    last = p; signed = true; $("#sig-hint").hidden = true;
+    last = p; signed = true; $("#sig-hint").hidden = true; $(".sig-box").classList.remove("invalid");
   });
   function endDraw() { if (drawing) { drawing = false; if (signed) sigData = canvas.toDataURL(); save(); } }
   canvas.addEventListener("pointerup", endDraw);
@@ -393,7 +405,7 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
   });
 
   /* ---------- save and restore (this device only) ---------- */
-  var FIELDS = ["f-address", "f-name", "f-room", "f-email", "f-checkin", "f-start", "f-by", "f-keys", "f-keynotes", "f-comments"];
+  var FIELDS = ["f-address", "f-name", "f-room", "f-email", "f-checkin", "f-start", "f-by", "f-keys", "f-roomkeys", "f-keynotes", "f-comments"];
   function collect() {
     var s = { fields: {}, items: {}, checks: [], extras: extras.slice(), rules: $("#f-rules").checked, declare: $("#f-declare").checked, sig: sigData };
     FIELDS.forEach(function (id) { s.fields[id] = $("#" + id).value; });
@@ -405,7 +417,9 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
     return s;
   }
   var timer;
-  function save() { clearTimeout(timer); timer = setTimeout(function () { try { localStorage.setItem(STORE_KEY, JSON.stringify(collect())); } catch (e) {} }, 300); }
+  var submitted = false;
+  function forget() { submitted = true; clearTimeout(timer); try { localStorage.removeItem(STORE_KEY); } catch (e) {} }
+  function save() { if (submitted) return; clearTimeout(timer); timer = setTimeout(function () { try { localStorage.setItem(STORE_KEY, JSON.stringify(collect())); } catch (e) {} }, 300); }
   function restore() {
     var s; try { s = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); } catch (e) { s = null; }
     if (!s) return;
@@ -431,18 +445,40 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
   });
 
   /* ---------- checks before sending ---------- */
+  var REQUIRED = [
+    ["f-address", "Enter the property address"],
+    ["f-name", "Enter your full name"],
+    ["f-room", "Enter your room"],
+    ["f-email", "Enter your email address"],
+    ["f-checkin", "Enter the check-in date"],
+    ["f-start", "Enter the tenancy start date"],
+    ["f-by", "Enter who did the check-in"],
+    ["f-keys", "Enter the number of front door keys (0 if none)"],
+    ["f-roomkeys", "Enter the number of room door keys (0 if none)"]
+  ];
   function validate() {
     var errs = [];
-    if (!val("f-address")) errs.push(["f-address", "Enter the property address"]);
-    if (!val("f-name")) errs.push(["f-name", "Enter your full name"]);
-    if (DIRECT && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val("f-email"))) errs.push(["f-email", "Enter your email address so you get a copy"]);
-    if (!val("f-checkin")) errs.push(["f-checkin", "Enter the check-in date"]);
+    $$(".invalid").forEach(function (el) { el.classList.remove("invalid"); });
+    $$(".missing").forEach(function (el) { el.classList.remove("missing"); });
+    REQUIRED.forEach(function (r) {
+      var v = val(r[0]), bad = !v;
+      if (r[0] === "f-email" && v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { bad = true; r = [r[0], "Check your email address"]; }
+      if ((r[0] === "f-keys" || r[0] === "f-roomkeys") && v && !(Number(v) >= 0)) bad = true;
+      if (bad) { errs.push(r); $("#" + r[0]).classList.add("invalid"); }
+    });
     var left = $$("tr.it").filter(function (tr) { return !$("input:checked", tr); });
+    left.forEach(function (tr) { tr.classList.add("missing"); });
     if (left.length) errs.push([left[0].dataset.id + "-good", "Rate every item (" + left.length + " left, starting with " + left[0].dataset.name + ")"]);
-    if (!$("#f-declare").checked) errs.push(["f-declare", "Tick the declaration"]);
-    if (!signed) errs.push(["sig", "Sign the form"]);
+    if (!$("#f-declare").checked) { errs.push(["f-declare", "Tick the declaration"]); $('label[for="f-declare"]').classList.add("missing"); }
+    if (!signed) { errs.push(["sig", "Sign the form"]); $(".sig-box").classList.add("invalid"); }
     return errs;
   }
+  // clear a field's error highlight as soon as it's filled in
+  document.addEventListener("input", function (e) { if (e.target.classList.contains("invalid") && e.target.value.trim()) e.target.classList.remove("invalid"); });
+  document.addEventListener("change", function (e) {
+    if (e.target.type === "radio") { var tr = e.target.closest("tr.it"); if (tr) tr.classList.remove("missing"); }
+    if (e.target.id === "f-declare" && e.target.checked) $('label[for="f-declare"]').classList.remove("missing");
+  });
 
   /* ---------- PDF ---------- */
   function ratingLabel(c) { var r = RATINGS.filter(function (x) { return x[0] === c; })[0]; return r ? r[1] : "Not rated"; }
@@ -481,7 +517,7 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
       $$("tr", tbody).forEach(function (tr) {
         if (tr.classList.contains("grp")) {
           ensure(34); doc.setFillColor(238, 240, 244); doc.rect(L, y - 10, R - L, 15, "F");
-          doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor.apply(doc, NAVY); doc.text(tr.textContent.toUpperCase(), L + 5, y); y += 15; return;
+          doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor.apply(doc, NAVY); doc.text(tr.dataset.name.toUpperCase(), L + 5, y); y += 15; return;
         }
         if (!tr.classList.contains("it")) return;
         var c = $("input:checked", tr), note = $("#" + tr.dataset.id + "-note").value.trim();
@@ -507,6 +543,7 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
     line("Tenancy start", longDate(val("f-start")));
     line("Check-in done by", val("f-by"));
     line("Front door keys", val("f-keys"));
+    line("Room door keys", val("f-roomkeys"));
     if (val("f-keynotes")) line("Other keys or notes", val("f-keynotes"));
     y += 10;
     h1("Section A: Your room"); table($("#room-items"));
@@ -616,7 +653,7 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
   function detailsText() {
     function list(tbody) {
       return $$("tr", tbody).map(function (tr) {
-        if (tr.classList.contains("grp")) return "\n" + tr.textContent.toUpperCase();
+        if (tr.classList.contains("grp")) return "\n" + tr.dataset.name.toUpperCase();
         if (!tr.classList.contains("it")) return null;
         var c = $("input:checked", tr), note = $("#" + tr.dataset.id + "-note").value.trim();
         return "- " + tr.dataset.name + ": " + ratingLabel(c && c.value) + (note ? " (" + note + ")" : "");
@@ -628,7 +665,9 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
       "Check-in date: " + longDate(val("f-checkin")),
       "Tenancy start: " + (longDate(val("f-start")) || "not given"),
       "Check-in done by: " + val("f-by"),
-      "Front door keys: " + (val("f-keys") || "not given") + (val("f-keynotes") ? " (" + val("f-keynotes") + ")" : ""),
+      "Front door keys: " + val("f-keys"),
+      "Room door keys: " + val("f-roomkeys"),
+      "Other keys or notes: " + (val("f-keynotes") || "None"),
       "", "SECTION A: YOUR ROOM", list($("#room-items")),
       "", "SECTION B: SHARED AREAS", list($("#shared-items")),
       "", "SECTION C: SAFETY CHECKS AND DOCUMENTS",
@@ -681,6 +720,8 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
       return DIRECT ? sendToLandlord(b) : sharePdf(b);
     }, function () { return "pdf-failed"; }).then(function (outcome) {
       result(outcome);
+      // Once it has gone, wipe the copy saved on this device so the next person starts with a blank form.
+      if (["sent", "sent-no-copy", "shared", "downloaded"].indexOf(outcome) > -1) forget();
       if (outcome === "sent" || outcome === "sent-no-copy") { sentOnce = true; btn.textContent = "Sent"; }
       else { btn.disabled = false; btn.textContent = "Send"; }
     });
@@ -721,7 +762,7 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
     fb.addEventListener("click", function () {
       $("#f-address").value = "1 Example Street\nExampletown\nEX1 2MP";
       $("#f-name").value = "Example Tenant"; $("#f-room").value = "Room 1"; $("#f-email").value = "tenant@example.com";
-$("#f-checkin").value = isoLocal(today); $("#f-start").value = isoLocal(today); $("#f-keys").value = "2";
+$("#f-checkin").value = isoLocal(today); $("#f-start").value = isoLocal(today); $("#f-keys").value = "2"; $("#f-roomkeys").value = "1";
       $$("tr.it").forEach(function (tr, i) {
         var v = /^(Desk|Lamp)$/.test(tr.dataset.name) ? "na" : (i === 1 ? "fair" : "good");
         document.getElementById(tr.dataset.id + "-" + v).checked = true;

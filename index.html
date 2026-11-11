@@ -147,10 +147,7 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
     <div class="field"><label for="f-name">Your full name</label><input type="text" id="f-name" autocomplete="name"></div>
     <div class="field"><label for="f-room">Your room</label><input type="text" id="f-room" placeholder="For example, Room 1"></div>
   </div>
-  <div class="pair">
-    <div class="field"><label for="f-email">Your email</label><input type="email" id="f-email" autocomplete="email"></div>
-    <div class="field"><label for="f-lemail">Landlord's email</label><input type="email" id="f-lemail" placeholder="From your tenancy agreement"></div>
-  </div>
+  <div class="field"><label for="f-email">Your email</label><span class="hint">So your landlord can reply about anything on the form.</span><input type="email" id="f-email" autocomplete="email"></div>
   <div class="pair">
     <div class="field"><label for="f-checkin">Check-in date</label><input type="date" id="f-checkin"></div>
     <div class="field"><label for="f-start">Tenancy start date</label><input type="date" id="f-start"></div>
@@ -212,7 +209,7 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
 
   <div class="send">
     <button type="submit" class="btn" id="send">Send</button>
-    <p>This creates a PDF of your check-in. Send it to your landlord's email address and they'll send you a signed copy back.</p>
+    <p id="send-note">This creates a PDF of your check-in and emails it to your landlord, who will send you a signed copy back.</p>
   </div>
 
   <div class="result" id="result" hidden></div>
@@ -229,8 +226,10 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
 (function () {
   "use strict";
 
-  /* Optional: paste a Web3Forms access key to also email a plain-text copy of the answers automatically. Leave empty to switch it off. */
-  var WEB3FORMS_KEY = "";
+  /* Web app URL of the Google Apps Script that emails the PDF to the landlord (see apps-script/SETUP.md).
+     Leave empty and Send falls back to the phone's share menu instead. */
+  var SEND_URL = "";
+  var MAX_EMAIL_BYTES = 18 * 1024 * 1024;
   var STORE_KEY = "checkin-form-v1";
 
   var ROOM = [
@@ -374,7 +373,7 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
   });
 
   /* ---------- save and restore (this device only) ---------- */
-  var FIELDS = ["f-address", "f-name", "f-room", "f-email", "f-lemail", "f-checkin", "f-start", "f-by", "f-keys", "f-keynotes", "f-comments"];
+  var FIELDS = ["f-address", "f-name", "f-room", "f-email", "f-checkin", "f-start", "f-by", "f-keys", "f-keynotes", "f-comments"];
   function collect() {
     var s = { fields: {}, items: {}, checks: [], extras: extras.slice(), rules: $("#f-rules").checked, declare: $("#f-declare").checked, sig: sigData };
     FIELDS.forEach(function (id) { s.fields[id] = $("#" + id).value; });
@@ -483,7 +482,6 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
     line("Tenant", val("f-name"));
     line("Room", val("f-room"));
     line("Tenant email", val("f-email"));
-    line("Landlord email", val("f-lemail"));
     line("Check-in date", longDate(val("f-checkin")));
     line("Tenancy start", longDate(val("f-start")));
     line("Check-in done by", val("f-by"));
@@ -552,9 +550,8 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
   function sharePdf(blob) {
     if (IN_FRAME) return Promise.resolve("preview");
     var file = new File([blob], fileName(), { type: "application/pdf" });
-    var to = val("f-lemail");
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      return navigator.share({ files: [file], title: "Check-in form", text: "My check-in form" + (to ? ". Please send to " + to : "") })
+      return navigator.share({ files: [file], title: "Check-in form", text: "My check-in form" })
         .then(function () { return "shared"; }, function (e) { return e && e.name === "AbortError" ? "cancelled" : "failed"; });
     }
     try {
@@ -565,68 +562,103 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
     } catch (e) { return Promise.resolve("failed"); }
   }
 
-  /* ---------- optional automatic email ---------- */
-  function sectionText(tbody) {
-    return $$("tr", tbody).map(function (tr) {
-      if (tr.classList.contains("grp")) return "\n" + tr.textContent.toUpperCase();
-      if (!tr.classList.contains("it")) return null;
-      var c = $("input:checked", tr), note = $("#" + tr.dataset.id + "-note").value.trim();
-      return "- " + tr.dataset.name + ": " + ratingLabel(c && c.value) + (note ? " (" + note + ")" : "");
-    }).filter(function (x) { return x !== null; }).join("\n").trim();
+  /* ---------- email to landlord (Google Apps Script) ---------- */
+  var DIRECT = !!SEND_URL && !IN_FRAME;
+  if (!SEND_URL) $("#send-note").textContent = "This creates a PDF of your check-in. Send it to your landlord's email address and they'll send you a signed copy back.";
+
+  function summaryText() {
+    var flagged = $$("tr.it").filter(function (tr) { var c = $("input:checked", tr); return c && (c.value === "fair" || c.value === "poor"); })
+      .map(function (tr) {
+        var c = $("input:checked", tr), note = $("#" + tr.dataset.id + "-note").value.trim();
+        return "- " + tr.dataset.name + ": " + ratingLabel(c.value) + (note ? " (" + note + ")" : "");
+      });
+    var missing = CHECKS.filter(function (c, i) { return !document.getElementById("c" + i).checked; });
+    return [
+      "Property: " + val("f-address").replace(/\n+/g, ", "),
+      "Tenant: " + val("f-name") + (val("f-room") ? ", " + val("f-room") : ""),
+      "Tenant email: " + (val("f-email") || "not given"),
+      "Check-in date: " + longDate(val("f-checkin")),
+      "Photos: " + photos.length,
+      "",
+      "Marked Fair or Poor:", flagged.length ? flagged.join("\n") : "- None",
+      "",
+      "Safety and documents not ticked:", missing.length ? missing.map(function (m) { return "- " + m; }).join("\n") : "- None",
+      "",
+      "Comments: " + (val("f-comments") || "None"),
+      "",
+      "The full form, signature and photos are in the attached PDF."
+    ].join("\n");
   }
-  function emailCopy(at) {
-    if (!WEB3FORMS_KEY || IN_FRAME) return Promise.resolve("off");
-    var data = {
-      access_key: WEB3FORMS_KEY, botcheck: $("#botcheck").checked, from_name: "Check-in form",
-      subject: "Check-in: " + val("f-name") + (val("f-room") ? ", " + val("f-room") : ""),
-      name: val("f-name"), email: val("f-email"),
-      "Property": val("f-address"), "Room": val("f-room"), "Check-in date": val("f-checkin"), "Tenancy start": val("f-start"),
-      "Check-in done by": val("f-by"), "Keys": val("f-keys") + (val("f-keynotes") ? " (" + val("f-keynotes") + ")" : ""),
-      "Your room": sectionText($("#room-items")), "Shared areas": sectionText($("#shared-items")),
-      "Safety and documents": CHECKS.map(function (c, i) { return (document.getElementById("c" + i).checked ? "[x] " : "[ ] ") + c; }).join("\n"),
-      "Comments": val("f-comments") || "None", "Photos": photos.length + " in the tenant's PDF",
-      "Signed": "On screen by " + val("f-name") + " at " + at.toLocaleString("en-GB")
-    };
-    return fetch("https://api.web3forms.com/submit", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(data) })
-      .then(function (r) { return r.json(); }).then(function (j) { return j && j.success ? "sent" : "failed"; }, function () { return "failed"; });
+  function toBase64(blob) {
+    return new Promise(function (res, rej) {
+      var r = new FileReader();
+      r.onload = function () { res(String(r.result).split(",")[1]); };
+      r.onerror = rej; r.readAsDataURL(blob);
+    });
+  }
+  function sendToLandlord(blob) {
+    if (blob.size > MAX_EMAIL_BYTES) return Promise.resolve("too-big");
+    return toBase64(blob).then(function (b64) {
+      // Sent as text/plain so the browser doesn't need a preflight check with Google.
+      return fetch(SEND_URL, {
+        method: "POST", redirect: "follow",
+        body: JSON.stringify({
+          pdf: b64, filename: fileName(), name: val("f-name"), room: val("f-room"), email: val("f-email"),
+          summary: summaryText(), botcheck: $("#botcheck").checked
+        })
+      });
+    }).then(function (r) { return r.json(); }).then(function (j) { return j && j.ok ? "sent" : "failed"; }, function () { return "failed"; });
   }
 
   /* ---------- send ---------- */
+  var sentOnce = false;
   $("#checkin").addEventListener("submit", function (e) {
     e.preventDefault();
+    if (sentOnce) return;
     var errs = validate(), box = $("#errors");
     if (errs.length) {
       $("#error-list").innerHTML = errs.map(function (x) { return '<li><a href="#" data-f="' + x[0] + '">' + esc(x[1]) + "</a></li>"; }).join("");
       box.hidden = false; box.scrollIntoView({ block: "center" }); return;
     }
     box.hidden = true;
-    var btn = $("#send"); btn.disabled = true; btn.textContent = "Creating PDF…";
+    var btn = $("#send"); btn.disabled = true; btn.textContent = DIRECT ? "Sending…" : "Creating PDF…";
     var at = new Date();
-    Promise.all([
-      buildPdf(at).then(function (b) { lastPdf = b; return sharePdf(b); }, function () { return "failed"; }),
-      emailCopy(at)
-    ]).then(function (r) { result(r[0], r[1]); btn.disabled = false; btn.textContent = "Send"; });
+    buildPdf(at).then(function (b) {
+      lastPdf = b;
+      return DIRECT ? sendToLandlord(b) : sharePdf(b);
+    }, function () { return "pdf-failed"; }).then(function (outcome) {
+      result(outcome);
+      if (outcome === "sent") { sentOnce = true; btn.textContent = "Sent"; }
+      else { btn.disabled = false; btn.textContent = "Send"; }
+    });
   });
   $("#error-list").addEventListener("click", function (e) {
     var a = e.target.closest("a[data-f]"); if (!a) return; e.preventDefault();
     var el = document.getElementById(a.dataset.f); if (el) { el.scrollIntoView({ block: "center" }); if (el.focus) el.focus(); }
   });
 
-  function result(pdf, email) {
-    var to = val("f-lemail"), toText = to ? esc(to) : "your landlord's email address";
-    var msg = {
-      shared: "Your PDF is ready. Check it went to " + toText + ", and keep a copy for yourself.",
-      downloaded: "Your PDF has been saved to your downloads. Email it to " + toText + " and keep a copy for yourself.",
-      cancelled: "The share menu was closed before the PDF was sent. Press Send again to share it.",
-      failed: "The PDF couldn't be shared or saved on this device. Try again on your phone.",
-      preview: "In this preview the PDF can't be shared. On the live page, Send opens the phone's share menu with the PDF attached."
-    }[pdf];
-    var h = "<p><b>" + (pdf === "shared" || pdf === "downloaded" ? "PDF created" : "Not sent yet") + "</b></p><p>" + msg + "</p>";
-    if (email === "sent") h += "<p>A copy of your answers was also emailed to the landlord.</p>";
-    if (email === "failed") h += "<p>The automatic copy of your answers didn't send, so make sure the PDF reaches your landlord.</p>";
-    if ((pdf === "cancelled" || pdf === "failed") && lastPdf) h += '<p><button type="button" class="btn btn-plain" id="reshare">Share the PDF again</button></p>';
+  function result(outcome) {
+    var M = {
+      sent: ["Sent", "Your check-in has been emailed to your landlord, who will send you a signed copy back. Save a copy for yourself too."],
+      "too-big": ["Not sent", "The PDF is too big to email from here, usually because of the number of photos. Remove a few photos and press Send again, or save the PDF and email it to your landlord yourself."],
+      failed: ["Not sent", "The check-in couldn't be emailed. Check your connection and press Send again. If it still doesn't work, save the PDF and email it to your landlord yourself."],
+      "pdf-failed": ["Not sent", "The PDF couldn't be created on this device. Try again on your phone."],
+      shared: ["PDF created", "Check it went to your landlord's email address, and keep a copy for yourself."],
+      downloaded: ["PDF created", "Your PDF has been saved to your downloads. Email it to your landlord and keep a copy for yourself."],
+      cancelled: ["Not sent yet", "The share menu was closed before the PDF was sent. Press Send again to share it."],
+      preview: ["Preview", "Nothing is sent from this preview. On the live page, Send emails the PDF to the landlord."]
+    }[outcome] || ["Not sent", "Something went wrong. Press Send again."];
+    var h = "<p><b>" + M[0] + "</b></p><p>" + M[1] + "</p>";
+    var offerSave = lastPdf && !IN_FRAME && ["sent", "too-big", "failed", "cancelled"].indexOf(outcome) > -1;
+    if (offerSave) h += '<p><button type="button" class="btn btn-plain" id="save-copy">' + (outcome === "sent" ? "Save a copy" : "Save the PDF") + "</button></p>";
     var res = $("#result"); res.innerHTML = h; res.hidden = false; res.scrollIntoView({ block: "nearest" });
-    var rb = $("#reshare"); if (rb) rb.addEventListener("click", function () { sharePdf(lastPdf).then(function (p) { result(p, email); }); });
+    var sb = $("#save-copy");
+    if (sb) sb.addEventListener("click", function () {
+      sharePdf(lastPdf).then(function (p) {
+        sb.insertAdjacentHTML("afterend", '<span class="hint" style="margin-left:10px">' +
+          (p === "shared" || p === "downloaded" ? "Saved." : p === "cancelled" ? "Cancelled." : "Couldn't save on this device.") + "</span>");
+      });
+    });
   }
 
   /* ---------- test answers (preview and local copies only) ---------- */
@@ -635,7 +667,7 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
     fb.addEventListener("click", function () {
       $("#f-address").value = "1 Example Street\nExampletown\nEX1 2MP";
       $("#f-name").value = "Example Tenant"; $("#f-room").value = "Room 1"; $("#f-email").value = "tenant@example.com";
-      $("#f-lemail").value = "landlord@example.com"; $("#f-checkin").value = isoLocal(today); $("#f-start").value = isoLocal(today); $("#f-keys").value = "2";
+$("#f-checkin").value = isoLocal(today); $("#f-start").value = isoLocal(today); $("#f-keys").value = "2";
       $$("tr.it").forEach(function (tr, i) {
         var v = /^(Desk|Lamp)$/.test(tr.dataset.name) ? "na" : (i === 1 ? "fair" : "good");
         document.getElementById(tr.dataset.id + "-" + v).checked = true;

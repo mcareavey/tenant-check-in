@@ -10,3 +10,7 @@ A check-in inventory and schedule of condition that tenants fill in on their pho
 Answers are saved in the tenant's browser until they send. Nothing is stored on a server.
 
 The page is a single file, `index.html`, served with GitHub Pages.
+
+## Emailing the PDF
+
+If `SEND_URL` in `index.html` is set, Send emails the PDF to the landlord through a small Google Apps Script (`apps-script/`). See `apps-script/SETUP.md`. If it's empty, Send opens the phone's share menu instead.

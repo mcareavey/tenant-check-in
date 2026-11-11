@@ -82,6 +82,8 @@ input[type="radio"], input[type="checkbox"] { width: 20px; height: 20px; margin:
 .add-note { background: none; border: 0; padding: 0; margin-top: 2px; font: inherit; font-size: .8125rem; color: var(--navy); text-decoration: underline; cursor: pointer; display: block; }
 .add-note[hidden] { display: none; }
 tr.note-row td { padding-top: 0; }
+.note-lab { display: block; font-size: .8125rem; font-weight: 700; color: var(--navy); margin-bottom: 3px; }
+.note-lab .req { color: var(--error); }
 tr.it.has-note td { border-bottom: 0; }
 .keys td:last-child { width: 130px; }
 
@@ -296,7 +298,8 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
     RATINGS.forEach(function (r) {
       h += '<td class="r"><input type="radio" name="' + id + '" id="' + id + "-" + r[0] + '" value="' + r[0] + '" aria-label="' + r[1] + ": " + esc(name) + '"></td>';
     });
-    return h + '</tr><tr class="note-row" hidden><td colspan="5"><input type="text" id="' + id + '-note" aria-label="Note for ' + esc(name) + '" placeholder="Note (optional): marks, damage, cleanliness"></td></tr>';
+    return h + '</tr><tr class="note-row" hidden><td colspan="5"><label class="note-lab" for="' + id + '-note" id="' + id + '-nl">Note <span class="opt">(optional)</span></label>' +
+      '<input type="text" id="' + id + '-note" placeholder="Marks, damage, cleanliness"></td></tr>';
   }
   function groupHTML(name) {
     return '<tr class="grp" data-name="' + esc(name) + '"><th colspan="5"><div class="grp-head"><span>' + esc(name) +
@@ -321,16 +324,30 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
   document.addEventListener("click", function (e) {
     var b = e.target.closest(".add-note"); if (b) showNote(b.closest("tr"), true);
   });
+  function hideNote(tr) {
+    var noteRow = tr.nextElementSibling, note = $("input", noteRow);
+    note.value = ""; note.classList.remove("invalid");
+    noteRow.hidden = true; tr.classList.remove("has-note"); $(".add-note", tr).hidden = false;
+    delete tr.dataset.auto;
+  }
   function notePrompt(tr) {
     var c = $("input:checked", tr), note = $("#" + tr.dataset.id + "-note");
     var needed = c && (c.value === "fair" || c.value === "poor");
-    note.placeholder = needed ? "Note (required): what's wrong and where" : "Note (optional): marks, damage, cleanliness";
+    $("#" + tr.dataset.id + "-nl").innerHTML = needed ? 'Note <span class="req">(required for ' + (c.value === "fair" ? "Fair" : "Poor") + ")</span>" : 'Note <span class="opt">(optional)</span>';
+    note.placeholder = needed ? "What's wrong and where" : "Marks, damage, cleanliness";
+    note.required = !!needed;
     if (!needed) note.classList.remove("invalid");
   }
+  // Fair or Poor opens a required note. Going back to Good or N/A closes and clears a note that Fair or Poor opened;
+  // a note the tenant opened themselves with "Add note" is left alone.
   document.addEventListener("change", function (e) {
     if (e.target.type !== "radio" || !e.target.closest("tr.it")) return;
-    var tr = e.target.closest("tr.it");
-    if (e.target.value === "fair" || e.target.value === "poor") showNote(tr, false);
+    var tr = e.target.closest("tr.it"), v = e.target.value;
+    if (v === "fair" || v === "poor") {
+      if (tr.nextElementSibling.hidden) { showNote(tr, true); tr.dataset.auto = "1"; }
+    } else if (tr.dataset.auto) {
+      hideNote(tr);
+    }
     notePrompt(tr);
   });
 
@@ -452,7 +469,7 @@ footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--lin
       var tr = $('tr.it[data-id="' + id + '"]'); if (!tr) return; var v = s.items[id];
       if (v.c) { var r = document.getElementById(id + "-" + v.c); if (r) r.checked = true; }
       if (v.n) { $("#" + id + "-note").value = v.n; showNote(tr, false); }
-      if (v.c === "fair" || v.c === "poor") showNote(tr, false);
+      if (v.c === "fair" || v.c === "poor") { showNote(tr, false); tr.dataset.auto = "1"; }
       notePrompt(tr);
     });
     (s.checks || []).forEach(function (v, i) { var c = document.getElementById("c" + i); if (c) c.checked = !!v; });

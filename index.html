@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Tenant Check-in Form</title>
+<style>
+/* Layout: a single plain form column, styled like the printed check-in form (navy rules, ruled tables, native controls). Light theme only. */
+:root {
+  --ink: #1b1f24;
+  --muted: #565d68;
+  --line: #c9ced6;
+  --field: #8a919c;
+  --navy: #1c335c;
+  --shade: #eef0f4;
+  --error: #b3261e;
+  --font: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: #ffffff; color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.5; border-top: 4px solid var(--navy); }
+.wrap { max-width: 720px; margin: 0 auto; padding: 0 16px; }
+h1 { font-size: 1.5rem; line-height: 1.25; color: var(--navy); margin: 28px 0 6px; text-wrap: balance; }
+h2 {
+  font-size: 1.125rem; color: var(--navy); margin: 36px 0 14px; padding-bottom: 5px;
+  border-bottom: 1px solid var(--navy); scroll-margin-top: 48px;
+}
+p { margin: 0 0 12px; }
+ol { margin: 0 0 12px; padding-left: 22px; }
+li { margin-bottom: 6px; }
+a { color: var(--navy); }
+.lede { color: var(--muted); margin-bottom: 20px; }
+.hint { color: var(--muted); font-size: .875rem; }
+
+/* progress */
+.progress {
+  position: sticky; top: 0; z-index: 5; background: #ffffff; border-bottom: 1px solid var(--line);
+  font-size: .875rem; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.progress .wrap { display: flex; justify-content: space-between; padding-top: 7px; padding-bottom: 7px; }
+
+/* fields */
+.field { margin-bottom: 16px; }
+.field > label, .field > .label { display: block; font-weight: 700; margin-bottom: 4px; }
+.field .hint { display: block; margin: -2px 0 6px; }
+input[type="text"], input[type="email"], input[type="date"], input[type="number"], textarea {
+  font: inherit; font-size: 16px; color: var(--ink); background: #ffffff;
+  border: 1px solid var(--field); border-radius: 2px; padding: 8px 9px; width: 100%;
+}
+textarea { min-height: 88px; resize: vertical; }
+input:focus, textarea:focus, button:focus-visible, a:focus-visible {
+  outline: 3px solid #f2c94c; outline-offset: 0; border-color: var(--ink);
+}
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+@media (max-width: 520px) { .pair { grid-template-columns: 1fr; } }
+.short { max-width: 120px; }
+
+/* tables */
+table { width: 100%; border-collapse: collapse; font-size: .9375rem; }
+thead th { background: var(--navy); color: #ffffff; font-size: .8125rem; font-weight: 700; text-align: left; padding: 6px 8px; }
+thead th.r { text-align: center; width: 46px; padding: 6px 2px; }
+td { border-bottom: 1px solid var(--line); padding: 8px; vertical-align: middle; }
+td.r { text-align: center; padding: 8px 2px; }
+tr.grp th {
+  background: var(--shade); color: var(--navy); text-align: left; font-size: .75rem; letter-spacing: .05em;
+  text-transform: uppercase; padding: 5px 8px; border-bottom: 1px solid var(--line);
+}
+input[type="radio"], input[type="checkbox"] { width: 20px; height: 20px; margin: 0; accent-color: var(--navy); vertical-align: middle; }
+.add-note { background: none; border: 0; padding: 0; margin-top: 2px; font: inherit; font-size: .8125rem; color: var(--navy); text-decoration: underline; cursor: pointer; display: block; }
+.add-note[hidden] { display: none; }
+tr.note-row td { padding-top: 0; }
+tr.it.has-note td { border-bottom: 0; }
+.keys td:last-child { width: 130px; }
+
+.add-row { display: flex; gap: 8px; margin: 12px 0 0; }
+.add-row input { flex: 1; }
+
+.checklist { list-style: none; padding: 0; margin: 0; }
+.checklist li { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; margin: 0; }
+.checklist input { flex: none; margin-top: 2px; }
+
+.btn {
+  font: inherit; font-weight: 700; font-size: 1rem; border-radius: 2px; padding: 11px 26px; cursor: pointer;
+  background: var(--navy); color: #ffffff; border: 1px solid var(--navy);
+}
+.btn[disabled] { opacity: .6; cursor: progress; }
+.btn-plain { background: #ffffff; color: var(--navy); padding: 7px 14px; font-size: .9375rem; }
+.linkish { background: none; border: 0; padding: 0; font: inherit; font-size: .875rem; color: var(--navy); text-decoration: underline; cursor: pointer; }
+
+.photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; margin: 10px 0 0; }
+.photos figure { margin: 0; position: relative; }
+.photos img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; border: 1px solid var(--line); }
+.photos button { position: absolute; top: 3px; right: 3px; border: 0; background: rgba(0,0,0,.7); color: #fff; width: 22px; height: 22px; cursor: pointer; font-size: 13px; line-height: 1; }
+
+.sig-box { border: 1px solid var(--field); background: #ffffff; position: relative; }
+#sig { width: 100%; height: 150px; display: block; touch-action: none; cursor: crosshair; }
+.sig-hint { position: absolute; left: 10px; bottom: 6px; font-size: .8125rem; color: var(--muted); pointer-events: none; }
+
+.errors { border-left: 5px solid var(--error); padding: 8px 14px; margin: 0 0 18px; }
+.errors[hidden] { display: none; }
+.errors strong { color: var(--error); }
+.errors ul { margin: 6px 0 0; padding-left: 18px; }
+.errors a { color: var(--error); }
+
+.send { margin: 22px 0 6px; }
+.send p { margin-top: 10px; max-width: 34rem; }
+
+.result { border: 1px solid var(--line); border-left: 5px solid var(--navy); padding: 12px 14px 2px; margin: 18px 0; }
+.result[hidden] { display: none; }
+
+footer { margin: 44px 0 40px; padding-top: 10px; border-top: 1px solid var(--line); font-size: .8125rem; color: var(--muted); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <h1>Check-in inventory and schedule of condition</h1>
+  <p class="lede">A record of your room and the shared areas on the day you move in.</p>
+</div>
+
+<div class="progress" aria-live="polite"><div class="wrap"><span>Check-in form</span><span id="prog">0 of 0 items rated</span></div></div>
+
+<div class="wrap">
+<form id="checkin" novalidate>
+  <input type="checkbox" name="botcheck" id="botcheck" tabindex="-1" autocomplete="off" hidden>
+
+  <h2 id="how">How this form works</h2>
+  <ol>
+    <li>Go through your room and the shared areas on the day you move in, ideally with whoever is checking you in.</li>
+    <li>Tick one box per item. <b>Good:</b> clean, no marks or damage. <b>Fair:</b> minor wear or small marks. <b>Poor:</b> damaged, stained, broken or not working. <b>N/A:</b> not there. Add a note for anything specific.</li>
+    <li>Add clear photos of your room and of anything you've noted.</li>
+    <li>Sign at the end and press Send.</li>
+    <li>If you find anything else within 7 days of moving in, email your landlord a description and photos. Those emails become part of this record.</li>
+    <li>At check-out the room and shared areas are compared with this record, allowing for fair wear and tear.</li>
+  </ol>
+  <p class="hint">Your answers are saved on this device as you go, so you can stop and come back. Photos aren't saved until you press Send.</p>
+
+  <h2 id="s-details">Your details</h2>
+  <div class="field">
+    <label for="f-address">Property address</label>
+    <textarea id="f-address" rows="3" autocomplete="street-address" style="min-height:76px"></textarea>
+  </div>
+  <div class="pair">
+    <div class="field"><label for="f-name">Your full name</label><input type="text" id="f-name" autocomplete="name"></div>
+    <div class="field"><label for="f-room">Your room</label><input type="text" id="f-room" placeholder="For example, Room 1"></div>
+  </div>
+  <div class="pair">
+    <div class="field"><label for="f-email">Your email</label><input type="email" id="f-email" autocomplete="email"></div>
+    <div class="field"><label for="f-lemail">Landlord's email</label><input type="email" id="f-lemail" placeholder="From your tenancy agreement"></div>
+  </div>
+  <div class="pair">
+    <div class="field"><label for="f-checkin">Check-in date</label><input type="date" id="f-checkin"></div>
+    <div class="field"><label for="f-start">Tenancy start date</label><input type="date" id="f-start"></div>
+  </div>
+  <div class="field"><label for="f-by">Check-in done by</label><input type="text" id="f-by" value="Landlord / appointed landlord representative"></div>
+
+  <h2 id="s-keys">Keys received</h2>
+  <table class="keys">
+    <thead><tr><th>Key</th><th>Number</th></tr></thead>
+    <tbody>
+      <tr><td><label for="f-keys">Front door</label></td><td><input type="number" id="f-keys" min="0" inputmode="numeric" class="short"></td></tr>
+      <tr><td colspan="2"><label for="f-keynotes" class="hint" style="display:block;margin-bottom:4px">Other keys or notes</label><input type="text" id="f-keynotes"></td></tr>
+    </tbody>
+  </table>
+  <p class="hint" style="margin-top:8px">Shared keys, for example to a back door or shed, may not be issued to you individually. You'll be shown where they're kept.</p>
+
+  <h2 id="s-room">Section A: Your room</h2>
+  <table class="cond">
+    <thead><tr><th>Item</th><th class="r">Good</th><th class="r">Fair</th><th class="r">Poor</th><th class="r">N/A</th></tr></thead>
+    <tbody id="room-items"></tbody>
+  </table>
+  <div class="add-row">
+    <input type="text" id="extra-name" placeholder="Anything else in your room" aria-label="Name of another item in your room">
+    <button type="button" class="btn btn-plain" id="extra-add">Add</button>
+  </div>
+
+  <h2 id="s-shared">Section B: Shared areas</h2>
+  <p class="hint">Rooms that aren't part of your tenancy aren't included.</p>
+  <table class="cond">
+    <thead><tr><th>Item</th><th class="r">Good</th><th class="r">Fair</th><th class="r">Poor</th><th class="r">N/A</th></tr></thead>
+    <tbody id="shared-items"></tbody>
+  </table>
+
+  <h2 id="s-safety">Section C: Safety checks and documents</h2>
+  <p class="hint">Tick each one that's true.</p>
+  <ul class="checklist" id="checks"></ul>
+
+  <h2 id="s-photos">Section D: Photos and comments</h2>
+  <div class="field">
+    <label for="f-photos">Photos</label>
+    <span class="hint">Your room from each corner, plus close-ups of anything marked Fair or Poor. They're added to the PDF.</span>
+    <input type="file" id="f-photos" accept="image/*" multiple>
+    <div class="photos" id="photo-list"></div>
+  </div>
+  <div class="field"><label for="f-comments">Comments</label><textarea id="f-comments"></textarea></div>
+
+  <h2 id="s-sign">Sign-off</h2>
+  <ul class="checklist">
+    <li><input type="checkbox" id="f-rules"><label for="f-rules">I've read the house rules.</label></li>
+    <li><input type="checkbox" id="f-declare"><label for="f-declare">This is an accurate record of the contents and condition of my room and the shared areas at the start of the tenancy, together with anything I report by email within 7 days of the check-in date.</label></li>
+  </ul>
+  <div class="field" style="margin-top:14px">
+    <span class="label" id="sig-label">Signature</span>
+    <div class="sig-box"><canvas id="sig" role="img" aria-labelledby="sig-label"></canvas><span class="sig-hint" id="sig-hint">Sign here</span></div>
+    <button type="button" class="linkish" id="sig-clear" style="margin-top:4px">Clear signature</button>
+  </div>
+
+  <div class="errors" id="errors" hidden role="alert"><strong>Before you send:</strong><ul id="error-list"></ul></div>
+
+  <div class="send">
+    <button type="submit" class="btn" id="send">Send</button>
+    <p>This creates a PDF of your check-in. Send it to your landlord's email address and they'll send you a signed copy back.</p>
+  </div>
+
+  <div class="result" id="result" hidden></div>
+</form>
+
+<footer>
+  <button type="button" class="linkish" id="reset">Clear all answers</button>
+  <button type="button" class="linkish" id="fill-example" hidden>Fill with test answers</button>
+</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  /* Optional: paste a Web3Forms access key to also email a plain-text copy of the answers automatically. Leave empty to switch it off. */
+  var WEB3FORMS_KEY = "";
+  var STORE_KEY = "checkin-form-v1";
+
+  var ROOM = [
+    ["Room", ["Door, frame, handle and lock", "Walls and paintwork", "Ceiling", "Skirting boards", "Flooring or carpet",
+      "Windows, frames, glass and locks", "Shutters, curtains or blinds", "Radiator and valve", "Light fittings and bulbs",
+      "Light switches and sockets"]],
+    ["Furniture", ["Bed frame", "Mattress (stains, tears, sagging)", "Mattress protector", "Wardrobe", "Chest of drawers",
+      "Bedside table", "Desk", "Desk chair", "Mirror", "Lamp"]],
+    ["Overall", ["Room cleanliness on moving in"]]
+  ];
+  var SHARED = [
+    ["Kitchen", ["Worktops and cupboards", "Oven and hob", "Fridge freezer", "Washing machine", "Microwave",
+      "Sink and taps", "Floor", "Table and chairs"]],
+    ["Living room", ["Sofa and seating", "Walls, floor and decoration"]],
+    ["Bathrooms", ["Main bathroom (all fittings)", "Second bathroom or shower room (all fittings)"]],
+    ["Hallways and outside", ["Hallways, landings and stairs", "Front and back doors and locks", "Garden, shed and bike storage", "Bins"]]
+  ];
+  var CHECKS = [
+    "Smoke alarms tested on every floor on check-in day and working",
+    "Carbon monoxide alarm(s) tested and working",
+    "Shown the gas meter, electricity fuse box and stopcock",
+    "Shown where any shared keys are kept",
+    "Received: tenancy agreement",
+    "Received: gas safety record",
+    "Received: electrical installation condition report (EICR)",
+    "Received: energy performance certificate (EPC)",
+    "Received: house rules and floorplan",
+    "Deposit paid. Protection certificate and prescribed information to follow within 30 days of payment"
+  ];
+  var RATINGS = [["good", "Good"], ["fair", "Fair"], ["poor", "Poor"], ["na", "N/A"]];
+
+  var $ = function (s, el) { return (el || document).querySelector(s); };
+  var $$ = function (s, el) { return Array.prototype.slice.call((el || document).querySelectorAll(s)); };
+  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
+  var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+  var today = new Date();
+  var isoLocal = function (d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); };
+  var longDate = function (v) { if (!v) return ""; var p = v.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }); };
+  var IN_FRAME = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
+  var val = function (id) { return $("#" + id).value.trim(); };
+
+  /* ---------- condition tables ---------- */
+  var n = 0;
+  function rowHTML(id, name) {
+    var h = '<tr class="it" data-id="' + id + '" data-name="' + esc(name) + '"><td><span id="' + id + '-n">' + esc(name) + "</span>" +
+      '<button type="button" class="add-note" aria-controls="' + id + '-note">Add note</button></td>';
+    RATINGS.forEach(function (r) {
+      h += '<td class="r"><input type="radio" name="' + id + '" id="' + id + "-" + r[0] + '" value="' + r[0] + '" aria-label="' + r[1] + ": " + esc(name) + '"></td>';
+    });
+    return h + '</tr><tr class="note-row" hidden><td colspan="5"><input type="text" id="' + id + '-note" aria-label="Note for ' + esc(name) + '" placeholder="Note: marks, damage, cleanliness"></td></tr>';
+  }
+  function build(tbody, groups, prefix) {
+    tbody.innerHTML = groups.map(function (g) {
+      return '<tr class="grp"><th colspan="5">' + esc(g[0]) + "</th></tr>" + g[1].map(function (name) { return rowHTML(prefix + (n++), name); }).join("");
+    }).join("");
+  }
+  build($("#room-items"), ROOM, "r");
+  build($("#shared-items"), SHARED, "s");
+  $("#checks").innerHTML = CHECKS.map(function (c, i) {
+    return '<li><input type="checkbox" id="c' + i + '"><label for="c' + i + '">' + esc(c) + "</label></li>";
+  }).join("");
+
+  function showNote(tr, focus) {
+    var noteRow = tr.nextElementSibling;
+    noteRow.hidden = false; tr.classList.add("has-note"); $(".add-note", tr).hidden = true;
+    if (focus) $("input", noteRow).focus();
+  }
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest(".add-note"); if (b) showNote(b.closest("tr"), true);
+  });
+  document.addEventListener("change", function (e) {
+    if (e.target.type === "radio" && (e.target.value === "fair" || e.target.value === "poor")) showNote(e.target.closest("tr"), false);
+  });
+
+  var extras = [];
+  function addExtra(name, silent) {
+    name = name.trim(); if (!name) return;
+    var id = "x" + extras.length; extras.push(name);
+    var tb = $("#room-items");
+    if (extras.length === 1) tb.insertAdjacentHTML("beforeend", '<tr class="grp"><th colspan="5">Added by you</th></tr>');
+    tb.insertAdjacentHTML("beforeend", rowHTML(id, name));
+    if (!silent) save();
+    progress();
+  }
+  $("#extra-add").addEventListener("click", function () { addExtra($("#extra-name").value); $("#extra-name").value = ""; });
+  $("#extra-name").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); $("#extra-add").click(); } });
+
+  function progress() {
+    var rows = $$("tr.it"), done = rows.filter(function (r) { return $("input:checked", r); }).length;
+    $("#prog").textContent = done + " of " + rows.length + " items rated";
+  }
+
+  /* ---------- signature ---------- */
+  var canvas = $("#sig"), ctx = canvas.getContext("2d"), drawing = false, signed = false, last = null, sigData = null, sized = "";
+  function sizeCanvas() {
+    var r = canvas.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    if (!r.width) return;
+    var key = r.width + "x" + r.height + "@" + dpr; if (key === sized) return; sized = key;
+    canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.lineWidth = 2.2; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#111827";
+    if (sigData) drawSig(sigData);
+  }
+  function drawSig(data) {
+    var img = new Image();
+    img.onload = function () { var r = canvas.getBoundingClientRect(); if (r.width) ctx.drawImage(img, 0, 0, r.width, r.height); };
+    img.src = data;
+  }
+  function pos(e) { var r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+  canvas.addEventListener("pointerdown", function (e) { sizeCanvas(); drawing = true; last = pos(e); canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener("pointermove", function (e) {
+    if (!drawing) return;
+    var p = pos(e); ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+    last = p; signed = true; $("#sig-hint").hidden = true;
+  });
+  function endDraw() { if (drawing) { drawing = false; if (signed) sigData = canvas.toDataURL(); save(); } }
+  canvas.addEventListener("pointerup", endDraw);
+  canvas.addEventListener("pointercancel", endDraw);
+  $("#sig-clear").addEventListener("click", function () {
+    ctx.clearRect(0, 0, canvas.width, canvas.height); signed = false; sigData = null; $("#sig-hint").hidden = false; save();
+  });
+  function sigPNG() {
+    var c = document.createElement("canvas"); c.width = canvas.width; c.height = canvas.height;
+    var x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(canvas, 0, 0);
+    return c.toDataURL("image/png");
+  }
+
+  /* ---------- photos ---------- */
+  var photos = [];
+  function renderPhotos() {
+    $("#photo-list").innerHTML = photos.map(function (p, i) {
+      return '<figure><img src="' + p.url + '" alt="Photo ' + (i + 1) + '"><button type="button" data-i="' + i + '" aria-label="Remove photo ' + (i + 1) + '">×</button></figure>';
+    }).join("");
+  }
+  $("#f-photos").addEventListener("change", function (e) {
+    Array.prototype.forEach.call(e.target.files, function (f) { photos.push({ file: f, url: URL.createObjectURL(f) }); });
+    e.target.value = ""; renderPhotos();
+  });
+  $("#photo-list").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-i]"); if (!b) return; photos.splice(+b.dataset.i, 1); renderPhotos();
+  });
+
+  /* ---------- save and restore (this device only) ---------- */
+  var FIELDS = ["f-address", "f-name", "f-room", "f-email", "f-lemail", "f-checkin", "f-start", "f-by", "f-keys", "f-keynotes", "f-comments"];
+  function collect() {
+    var s = { fields: {}, items: {}, checks: [], extras: extras.slice(), rules: $("#f-rules").checked, declare: $("#f-declare").checked, sig: sigData };
+    FIELDS.forEach(function (id) { s.fields[id] = $("#" + id).value; });
+    $$("tr.it").forEach(function (tr) {
+      var c = $("input:checked", tr), note = $("#" + tr.dataset.id + "-note").value;
+      if (c || note) s.items[tr.dataset.id] = { c: c ? c.value : "", n: note };
+    });
+    $$("#checks input").forEach(function (c, i) { s.checks[i] = c.checked; });
+    return s;
+  }
+  var timer;
+  function save() { clearTimeout(timer); timer = setTimeout(function () { try { localStorage.setItem(STORE_KEY, JSON.stringify(collect())); } catch (e) {} }, 300); }
+  function restore() {
+    var s; try { s = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); } catch (e) { s = null; }
+    if (!s) return;
+    (s.extras || []).forEach(function (x) { addExtra(x, true); });
+    Object.keys(s.fields || {}).forEach(function (id) { var el = $("#" + id); if (el && s.fields[id] != null) el.value = s.fields[id]; });
+    Object.keys(s.items || {}).forEach(function (id) {
+      var tr = $('tr.it[data-id="' + id + '"]'); if (!tr) return; var v = s.items[id];
+      if (v.c) { var r = document.getElementById(id + "-" + v.c); if (r) r.checked = true; }
+      if (v.n) { $("#" + id + "-note").value = v.n; showNote(tr, false); }
+    });
+    (s.checks || []).forEach(function (v, i) { var c = document.getElementById("c" + i); if (c) c.checked = !!v; });
+    $("#f-rules").checked = !!s.rules; $("#f-declare").checked = !!s.declare;
+    if (s.sig) { sigData = s.sig; signed = true; $("#sig-hint").hidden = true; drawSig(s.sig); }
+  }
+  $("#checkin").addEventListener("input", function () { save(); progress(); });
+  $("#checkin").addEventListener("change", function () { save(); progress(); });
+
+  var armed = false;
+  $("#reset").addEventListener("click", function () {
+    if (!armed) { armed = true; this.textContent = "Tap again to clear everything"; return; }
+    try { localStorage.removeItem(STORE_KEY); } catch (e) {}
+    location.reload();
+  });
+
+  /* ---------- checks before sending ---------- */
+  function validate() {
+    var errs = [];
+    if (!val("f-address")) errs.push(["f-address", "Enter the property address"]);
+    if (!val("f-name")) errs.push(["f-name", "Enter your full name"]);
+    if (!val("f-checkin")) errs.push(["f-checkin", "Enter the check-in date"]);
+    var left = $$("tr.it").filter(function (tr) { return !$("input:checked", tr); });
+    if (left.length) errs.push([left[0].dataset.id + "-good", "Rate every item (" + left.length + " left, starting with " + left[0].dataset.name + ")"]);
+    if (!$("#f-declare").checked) errs.push(["f-declare", "Tick the declaration"]);
+    if (!signed) errs.push(["sig", "Sign the form"]);
+    return errs;
+  }
+
+  /* ---------- PDF ---------- */
+  function ratingLabel(c) { var r = RATINGS.filter(function (x) { return x[0] === c; })[0]; return r ? r[1] : "Not rated"; }
+  function loadImage(src) { return new Promise(function (res, rej) { var i = new Image(); i.onload = function () { res(i); }; i.onerror = rej; i.src = src; }); }
+  function compress(p) {
+    return loadImage(p.url).then(function (img) {
+      var s = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
+      var c = document.createElement("canvas"); c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      return { data: c.toDataURL("image/jpeg", 0.72), w: c.width, h: c.height, name: p.file.name, time: p.file.lastModified };
+    });
+  }
+  function buildPdf(at) {
+    var doc = new window.jspdf.jsPDF({ unit: "pt", format: "a4" });
+    var L = 40, R = 555, y = 0, NAVY = [28, 51, 92], GREY = [86, 93, 104], INK = [27, 31, 36];
+    var addr1 = val("f-address").split(/\n|,/)[0].trim();
+    function header() {
+      doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor.apply(doc, NAVY); doc.text(addr1, L, 30);
+      doc.setFont("helvetica", "normal"); doc.setTextColor.apply(doc, GREY); doc.text("Check-in inventory and schedule of condition", R, 30, { align: "right" });
+      doc.setDrawColor.apply(doc, NAVY); doc.setLineWidth(0.6); doc.line(L, 36, R, 36); y = 58;
+    }
+    function ensure(h) { if (y + h > 800) { doc.addPage(); header(); } }
+    function h1(t) { ensure(70); doc.setFont("helvetica", "bold"); doc.setFontSize(12.5); doc.setTextColor.apply(doc, NAVY); doc.text(t, L, y); y += 8; doc.setLineWidth(0.5); doc.line(L, y, R, y); y += 14; }
+    function line(label, value) {
+      doc.setFontSize(9.5); var v = doc.splitTextToSize(String(value || "-"), R - L - 130); ensure(v.length * 12 + 4);
+      doc.setFont("helvetica", "bold"); doc.setTextColor.apply(doc, NAVY); doc.text(label, L, y);
+      doc.setFont("helvetica", "normal"); doc.setTextColor.apply(doc, INK); doc.text(v, L + 130, y); y += v.length * 12 + 3;
+    }
+    function para(t) { doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor.apply(doc, INK); var v = doc.splitTextToSize(t, R - L); ensure(v.length * 12 + 6); doc.text(v, L, y); y += v.length * 12 + 6; }
+    var COL = { good: [44, 122, 75], fair: [168, 107, 18], poor: [176, 53, 45], na: GREY };
+    function table(tbody) {
+      ensure(40);
+      doc.setFillColor.apply(doc, NAVY); doc.rect(L, y - 11, R - L, 16, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
+      doc.text("Item", L + 5, y); doc.text("Condition", L + 225, y); doc.text("Notes", L + 290, y); y += 18;
+      $$("tr", tbody).forEach(function (tr) {
+        if (tr.classList.contains("grp")) {
+          ensure(34); doc.setFillColor(238, 240, 244); doc.rect(L, y - 10, R - L, 15, "F");
+          doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor.apply(doc, NAVY); doc.text(tr.textContent.toUpperCase(), L + 5, y); y += 15; return;
+        }
+        if (!tr.classList.contains("it")) return;
+        var c = $("input:checked", tr), note = $("#" + tr.dataset.id + "-note").value.trim();
+        doc.setFontSize(9);
+        var nl = doc.splitTextToSize(tr.dataset.name, 210), tl = note ? doc.splitTextToSize(note, R - L - 295) : [];
+        var h = Math.max(nl.length, tl.length, 1) * 11 + 5; ensure(h);
+        doc.setFont("helvetica", "normal"); doc.setTextColor.apply(doc, INK); doc.text(nl, L + 5, y);
+        doc.setFont("helvetica", "bold"); doc.setTextColor.apply(doc, c ? COL[c.value] : GREY); doc.text(ratingLabel(c && c.value), L + 225, y);
+        doc.setFont("helvetica", "normal"); doc.setTextColor.apply(doc, INK); if (tl.length) doc.text(tl, L + 290, y);
+        y += h - 5; doc.setDrawColor(201, 206, 214); doc.setLineWidth(0.4); doc.line(L, y, R, y); y += 12;
+      });
+      y += 6;
+    }
+
+    header();
+    doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor.apply(doc, NAVY);
+    doc.text("Check-in inventory and schedule of condition", L, y + 4); y += 28;
+    line("Property", val("f-address").replace(/\n+/g, ", "));
+    line("Tenant", val("f-name"));
+    line("Room", val("f-room"));
+    line("Tenant email", val("f-email"));
+    line("Landlord email", val("f-lemail"));
+    line("Check-in date", longDate(val("f-checkin")));
+    line("Tenancy start", longDate(val("f-start")));
+    line("Check-in done by", val("f-by"));
+    line("Front door keys", val("f-keys"));
+    if (val("f-keynotes")) line("Other keys or notes", val("f-keynotes"));
+    y += 10;
+    h1("Section A: Your room"); table($("#room-items"));
+    h1("Section B: Shared areas"); table($("#shared-items"));
+    h1("Section C: Safety checks and documents");
+    CHECKS.forEach(function (c, i) {
+      var on = document.getElementById("c" + i).checked;
+      doc.setFontSize(9.5); var v = doc.splitTextToSize(c, R - L - 20); ensure(v.length * 12 + 4);
+      doc.setDrawColor.apply(doc, GREY); doc.setLineWidth(0.6); doc.rect(L, y - 8, 9, 9);
+      if (on) { doc.setFont("helvetica", "bold"); doc.setTextColor.apply(doc, NAVY); doc.text("x", L + 2.2, y - 0.6); }
+      doc.setFont("helvetica", "normal"); doc.setTextColor.apply(doc, INK); doc.text(v, L + 16, y); y += v.length * 12 + 4;
+    });
+    y += 8;
+    h1("Section D: Photos and comments");
+    para("Comments: " + (val("f-comments") || "None."));
+    para("Photos: " + photos.length + (photos.length ? ", on the pages after the sign-off." : "."));
+    para("House rules read: " + ($("#f-rules").checked ? "Yes" : "No"));
+    y += 4;
+    h1("Sign-off");
+    para("We agree this is an accurate record of the contents and condition of the room and shared areas at the start of the tenancy, together with anything the tenant reports by email within 7 days of the check-in date.");
+    ensure(140);
+    var colW = (R - L - 20) / 2, top = y + 6;
+    [["Tenant", val("f-name"), longDate(isoLocal(at))], ["Landlord", "", ""]].forEach(function (b, i) {
+      var x0 = L + i * (colW + 20), yy = top;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor.apply(doc, NAVY); doc.text(b[0], x0, yy); yy += 8;
+      [["Name", 22, b[1]], ["Signature", 56, null], ["Date", 22, b[2]]].forEach(function (r) {
+        doc.setDrawColor(201, 206, 214); doc.setFillColor(238, 240, 244); doc.rect(x0, yy, 62, r[1], "FD"); doc.rect(x0 + 62, yy, colW - 62, r[1]);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor.apply(doc, NAVY); doc.text(r[0], x0 + 5, yy + 14);
+        doc.setTextColor.apply(doc, INK); if (r[2]) doc.text(r[2], x0 + 67, yy + 14);
+        if (r[0] === "Signature" && i === 0) {
+          var ratio = canvas.height / canvas.width, sw = colW - 70, sh = Math.min(r[1] - 6, sw * ratio);
+          doc.addImage(sigPNG(), "PNG", x0 + 66, yy + 3, sh / ratio, sh);
+        }
+        yy += r[1];
+      });
+    });
+    y = top + 118;
+    doc.setFontSize(8); doc.setTextColor.apply(doc, GREY); doc.text("Completed by the tenant on " + at.toLocaleString("en-GB") + ".", L, y);
+
+    return Promise.all(photos.map(compress)).then(function (imgs) {
+      imgs.forEach(function (im, i) {
+        if (i % 2 === 0) { doc.addPage(); header(); h1(i === 0 ? "Photos" : "Photos (continued)"); }
+        var s = Math.min((R - L) / im.w, 330 / im.h), w = im.w * s, h = im.h * s;
+        doc.addImage(im.data, "JPEG", L, y, w, h);
+        doc.setFontSize(8); doc.setTextColor.apply(doc, GREY);
+        doc.text("Photo " + (i + 1) + ": " + im.name + (im.time ? ", taken or saved " + new Date(im.time).toLocaleString("en-GB") : ""), L, y + h + 11);
+        y += h + 26;
+      });
+      var pages = doc.getNumberOfPages();
+      for (var p = 1; p <= pages; p++) {
+        doc.setPage(p); doc.setFontSize(7.5); doc.setTextColor.apply(doc, GREY);
+        doc.text("Page " + p + " of " + pages, R, 822, { align: "right" }); doc.text("Tenant initials: ______", L, 822);
+      }
+      return doc.output("blob");
+    });
+  }
+
+  function fileName() {
+    return [val("f-name") || "Tenant", val("f-room"), "Check-in"].filter(Boolean).join(" - ").replace(/[^\w \-]+/g, "").replace(/\s+/g, "_") + ".pdf";
+  }
+  var lastPdf = null;
+  function sharePdf(blob) {
+    if (IN_FRAME) return Promise.resolve("preview");
+    var file = new File([blob], fileName(), { type: "application/pdf" });
+    var to = val("f-lemail");
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      return navigator.share({ files: [file], title: "Check-in form", text: "My check-in form" + (to ? ". Please send to " + to : "") })
+        .then(function () { return "shared"; }, function (e) { return e && e.name === "AbortError" ? "cancelled" : "failed"; });
+    }
+    try {
+      var url = URL.createObjectURL(blob), a = document.createElement("a");
+      a.href = url; a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+      return Promise.resolve("downloaded");
+    } catch (e) { return Promise.resolve("failed"); }
+  }
+
+  /* ---------- optional automatic email ---------- */
+  function sectionText(tbody) {
+    return $$("tr", tbody).map(function (tr) {
+      if (tr.classList.contains("grp")) return "\n" + tr.textContent.toUpperCase();
+      if (!tr.classList.contains("it")) return null;
+      var c = $("input:checked", tr), note = $("#" + tr.dataset.id + "-note").value.trim();
+      return "- " + tr.dataset.name + ": " + ratingLabel(c && c.value) + (note ? " (" + note + ")" : "");
+    }).filter(function (x) { return x !== null; }).join("\n").trim();
+  }
+  function emailCopy(at) {
+    if (!WEB3FORMS_KEY || IN_FRAME) return Promise.resolve("off");
+    var data = {
+      access_key: WEB3FORMS_KEY, botcheck: $("#botcheck").checked, from_name: "Check-in form",
+      subject: "Check-in: " + val("f-name") + (val("f-room") ? ", " + val("f-room") : ""),
+      name: val("f-name"), email: val("f-email"),
+      "Property": val("f-address"), "Room": val("f-room"), "Check-in date": val("f-checkin"), "Tenancy start": val("f-start"),
+      "Check-in done by": val("f-by"), "Keys": val("f-keys") + (val("f-keynotes") ? " (" + val("f-keynotes") + ")" : ""),
+      "Your room": sectionText($("#room-items")), "Shared areas": sectionText($("#shared-items")),
+      "Safety and documents": CHECKS.map(function (c, i) { return (document.getElementById("c" + i).checked ? "[x] " : "[ ] ") + c; }).join("\n"),
+      "Comments": val("f-comments") || "None", "Photos": photos.length + " in the tenant's PDF",
+      "Signed": "On screen by " + val("f-name") + " at " + at.toLocaleString("en-GB")
+    };
+    return fetch("https://api.web3forms.com/submit", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(data) })
+      .then(function (r) { return r.json(); }).then(function (j) { return j && j.success ? "sent" : "failed"; }, function () { return "failed"; });
+  }
+
+  /* ---------- send ---------- */
+  $("#checkin").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var errs = validate(), box = $("#errors");
+    if (errs.length) {
+      $("#error-list").innerHTML = errs.map(function (x) { return '<li><a href="#" data-f="' + x[0] + '">' + esc(x[1]) + "</a></li>"; }).join("");
+      box.hidden = false; box.scrollIntoView({ block: "center" }); return;
+    }
+    box.hidden = true;
+    var btn = $("#send"); btn.disabled = true; btn.textContent = "Creating PDF…";
+    var at = new Date();
+    Promise.all([
+      buildPdf(at).then(function (b) { lastPdf = b; return sharePdf(b); }, function () { return "failed"; }),
+      emailCopy(at)
+    ]).then(function (r) { result(r[0], r[1]); btn.disabled = false; btn.textContent = "Send"; });
+  });
+  $("#error-list").addEventListener("click", function (e) {
+    var a = e.target.closest("a[data-f]"); if (!a) return; e.preventDefault();
+    var el = document.getElementById(a.dataset.f); if (el) { el.scrollIntoView({ block: "center" }); if (el.focus) el.focus(); }
+  });
+
+  function result(pdf, email) {
+    var to = val("f-lemail"), toText = to ? esc(to) : "your landlord's email address";
+    var msg = {
+      shared: "Your PDF is ready. Check it went to " + toText + ", and keep a copy for yourself.",
+      downloaded: "Your PDF has been saved to your downloads. Email it to " + toText + " and keep a copy for yourself.",
+      cancelled: "The share menu was closed before the PDF was sent. Press Send again to share it.",
+      failed: "The PDF couldn't be shared or saved on this device. Try again on your phone.",
+      preview: "In this preview the PDF can't be shared. On the live page, Send opens the phone's share menu with the PDF attached."
+    }[pdf];
+    var h = "<p><b>" + (pdf === "shared" || pdf === "downloaded" ? "PDF created" : "Not sent yet") + "</b></p><p>" + msg + "</p>";
+    if (email === "sent") h += "<p>A copy of your answers was also emailed to the landlord.</p>";
+    if (email === "failed") h += "<p>The automatic copy of your answers didn't send, so make sure the PDF reaches your landlord.</p>";
+    if ((pdf === "cancelled" || pdf === "failed") && lastPdf) h += '<p><button type="button" class="btn btn-plain" id="reshare">Share the PDF again</button></p>';
+    var res = $("#result"); res.innerHTML = h; res.hidden = false; res.scrollIntoView({ block: "nearest" });
+    var rb = $("#reshare"); if (rb) rb.addEventListener("click", function () { sharePdf(lastPdf).then(function (p) { result(p, email); }); });
+  }
+
+  /* ---------- test answers (preview and local copies only) ---------- */
+  if (IN_FRAME || location.protocol === "file:") {
+    var fb = $("#fill-example"); fb.hidden = false;
+    fb.addEventListener("click", function () {
+      $("#f-address").value = "1 Example Street\nExampletown\nEX1 2MP";
+      $("#f-name").value = "Example Tenant"; $("#f-room").value = "Room 1"; $("#f-email").value = "tenant@example.com";
+      $("#f-lemail").value = "landlord@example.com"; $("#f-checkin").value = isoLocal(today); $("#f-start").value = isoLocal(today); $("#f-keys").value = "2";
+      $$("tr.it").forEach(function (tr, i) {
+        var v = /^(Desk|Lamp)$/.test(tr.dataset.name) ? "na" : (i === 1 ? "fair" : "good");
+        document.getElementById(tr.dataset.id + "-" + v).checked = true;
+        if (v === "fair") { $("#" + tr.dataset.id + "-note").value = "Small scuff by the door, about 5cm"; showNote(tr, false); }
+      });
+      $$("#checks input").forEach(function (c) { c.checked = true; });
+      $("#f-rules").checked = true; $("#f-declare").checked = true;
+      sizeCanvas(); ctx.clearRect(0, 0, canvas.width, canvas.height);
+      var r = canvas.getBoundingClientRect(); ctx.beginPath(); ctx.moveTo(20, r.height * 0.6);
+      for (var x = 20; x < Math.min(240, r.width - 20); x += 6) ctx.lineTo(x, r.height * 0.55 + Math.sin(x / 11) * 16);
+      ctx.stroke(); signed = true; sigData = canvas.toDataURL(); $("#sig-hint").hidden = true;
+      progress(); save(); $("#s-sign").scrollIntoView();
+    });
+  }
+
+  /* ---------- start ---------- */
+  $("#f-checkin").value = isoLocal(today);
+  sizeCanvas();
+  restore();
+  progress();
+  window.addEventListener("resize", sizeCanvas);
+})();
+</script>
+</body>
+</html>
